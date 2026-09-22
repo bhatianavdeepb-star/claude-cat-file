@@ -623,6 +623,90 @@
     .footer-right{text-align:left;}
     .brand-footer{justify-content:flex-start;}
   }
+
+  /* ---------- Add product ---------- */
+  .add-fab{
+    position:fixed;
+    right:18px;
+    bottom:86px;
+    width:52px;height:52px;
+    border-radius:50%;
+    background:var(--purple);
+    color:#fff;
+    border:none;
+    font-size:1.6rem;
+    line-height:1;
+    box-shadow:0 4px 14px rgba(90,22,166,0.4);
+    cursor:pointer;
+    z-index:12;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .add-fab:hover{background:var(--purple-deep);}
+
+  .modal-overlay{
+    position:fixed; inset:0;
+    background:rgba(32,31,41,0.5);
+    display:none;
+    align-items:flex-start;
+    justify-content:center;
+    padding:26px 16px;
+    overflow-y:auto;
+    z-index:20;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal-box{
+    background:#fff;
+    border-radius:16px;
+    max-width:440px;
+    width:100%;
+    padding:22px 22px 20px;
+  }
+  .modal-box h2{
+    margin:0 0 14px;
+    font-size:1.1rem;
+    font-weight:800;
+    color:var(--purple-deep);
+  }
+  .modal-field{margin-bottom:12px;}
+  .modal-field label{
+    display:block;
+    font-size:0.72rem;
+    font-weight:700;
+    color:var(--ink-soft);
+    letter-spacing:0.02em;
+    margin-bottom:5px;
+  }
+  .modal-field input, .modal-field select{
+    width:100%;
+    height:38px;
+    border:1.6px solid var(--purple-line);
+    border-radius:10px;
+    padding:0 12px;
+    font-family:'Poppins',sans-serif;
+    font-size:0.85rem;
+    color:var(--ink);
+    background:#fff;
+  }
+  .modal-field input:focus, .modal-field select:focus{outline:none;border-color:var(--purple);}
+  .modal-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    margin-top:16px;
+  }
+  .modal-actions button{
+    border-radius:20px;
+    padding:9px 18px;
+    font-family:'Poppins',sans-serif;
+    font-weight:700;
+    font-size:0.82rem;
+    cursor:pointer;
+    border:none;
+  }
+  .modal-cancel{background:#F1EDF7;color:var(--ink-soft);}
+  .modal-save{background:var(--purple);color:#fff;}
+  .modal-save:disabled{background:#C9B7E6;cursor:not-allowed;}
+  .modal-error{color:#B3261E;font-size:0.78rem;margin:-4px 0 10px;}
 </style>
 </head>
 <body>
@@ -690,6 +774,47 @@
   <button id="copy-btn" disabled>Copy order</button>
 </div>
 <div class="copy-flash" id="copy-flash">Order copied</div>
+
+<button type="button" class="add-fab" id="add-fab" title="Add product" style="display:none">+</button>
+
+<div class="modal-overlay" id="add-modal-overlay">
+  <div class="modal-box">
+    <h2>Add a product</h2>
+    <div class="modal-error" id="add-modal-error" style="display:none"></div>
+    <div class="modal-field">
+      <label for="add-page">Catalogue page</label>
+      <select id="add-page"></select>
+    </div>
+    <div class="modal-field">
+      <label for="add-subcategory">Subcategory</label>
+      <select id="add-subcategory"></select>
+    </div>
+    <div class="modal-field" id="add-new-subcategory-field" style="display:none">
+      <label for="add-new-subcategory">New subcategory name</label>
+      <input type="text" id="add-new-subcategory" placeholder="e.g. Balloons">
+    </div>
+    <div class="modal-field">
+      <label for="add-name">Product name</label>
+      <input type="text" id="add-name" placeholder="e.g. 12&quot; Party Balloons, 20 Pack">
+    </div>
+    <div class="modal-field">
+      <label for="add-price">Price (£, leave blank for TBC)</label>
+      <input type="text" id="add-price" inputmode="decimal" placeholder="e.g. 3.50">
+    </div>
+    <div class="modal-field">
+      <label for="add-sku">SKU (optional)</label>
+      <input type="text" id="add-sku">
+    </div>
+    <div class="modal-field">
+      <label for="add-spec">Spec / size (optional)</label>
+      <input type="text" id="add-spec">
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="modal-cancel" id="add-cancel">Cancel</button>
+      <button type="button" class="modal-save" id="add-save">Add product</button>
+    </div>
+  </div>
+</div>
 
 <script>
   // ---------- Icons ----------
@@ -1046,7 +1171,7 @@
       <div class="pack-pills">
         ${p.sizes.map((sz, i) => `<button type="button" class="pack-pill ${sizeState[p.id]===i?'sel':''}" data-action="size" data-id="${p.id}" data-idx="${i}">${sz.l}</button>`).join('')}
       </div>` : '';
-    const cat = CATEGORIES[p.category];
+    const cat = CATEGORIES[p.category] || { label: p.category, icon: ICONS.kitchenware, feats: [] };
     const specWithSize = p.sizes ? `${p.spec ? p.spec + ' · ' : ''}${p.sizes[sizeState[p.id]].l}` : p.spec;
     const skuLine = specWithSize ? (p.sku ? `${p.sku} &middot; ${specWithSize}` : specWithSize) : p.sku;
     return `
@@ -1079,7 +1204,7 @@
   }
 
   function catBarHtml(catId, first){
-    const cat = CATEGORIES[catId];
+    const cat = CATEGORIES[catId] || { label: catId, icon: ICONS.kitchenware, feats: [] };
     return `
       <div class="cat-bar ${first ? '' : 'section-bar'}">
         <div class="cat-left">
@@ -1246,6 +1371,158 @@
       setTimeout(() => flash.classList.remove('show'), 1400);
     });
   });
+
+  // ---------- Add product (via the `db` artifact capability) ----------
+  let dbApi = null;
+
+  function slugify(text){
+    return (text || '').toString().normalize('NFKD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'item';
+  }
+
+  function uniqueProductId(base){
+    let id = base, n = 2;
+    while (PRODUCTS.some(p => p.id === id)){ id = `${base}-${n}`; n++; }
+    return id;
+  }
+
+  function addDynamicSubcategory(key, data){
+    if (CATEGORIES[key]) return;
+    CATEGORIES[key] = { label: data.label, icon: ICONS.kitchenware, feats: [] };
+    const page = TOP_CATEGORIES.find(t => t.id === data.pageId);
+    if (page && !page.sub.includes(key)) page.sub.push(key);
+  }
+
+  function addDynamicProduct(doc){
+    if (PRODUCTS.some(p => p.id === doc.id)) return;
+    PRODUCTS.push({
+      id: doc.id, category: doc.category, name: doc.name,
+      sku: doc.sku || '', spec: doc.spec || '',
+      price: (doc.price === undefined || doc.price === null) ? null : doc.price,
+      img: PHOTO_PENDING
+    });
+    state[doc.id] = 0;
+  }
+
+  const addFab = document.getElementById('add-fab');
+  const addOverlay = document.getElementById('add-modal-overlay');
+  const addPageSel = document.getElementById('add-page');
+  const addSubcatSel = document.getElementById('add-subcategory');
+  const addNewSubField = document.getElementById('add-new-subcategory-field');
+  const addNewSubInput = document.getElementById('add-new-subcategory');
+  const addNameInput = document.getElementById('add-name');
+  const addPriceInput = document.getElementById('add-price');
+  const addSkuInput = document.getElementById('add-sku');
+  const addSpecInput = document.getElementById('add-spec');
+  const addSaveBtn = document.getElementById('add-save');
+  const addErrorEl = document.getElementById('add-modal-error');
+
+  function populateAddPageSelect(){
+    addPageSel.innerHTML = TOP_CATEGORIES.map(t =>
+      `<option value="${t.id}">${t.label.replace(/&amp;/g, '&')}</option>`
+    ).join('');
+  }
+
+  function populateAddSubcategorySelect(){
+    const page = TOP_CATEGORIES.find(t => t.id === addPageSel.value);
+    const opts = (page ? page.sub : []).map(key =>
+      `<option value="${key}">${(CATEGORIES[key] ? CATEGORIES[key].label : key)}</option>`
+    );
+    opts.push(`<option value="__new__">+ New subcategory…</option>`);
+    addSubcatSel.innerHTML = opts.join('');
+    addNewSubField.style.display = addSubcatSel.value === '__new__' ? '' : 'none';
+  }
+
+  function openAddModal(){
+    addErrorEl.style.display = 'none';
+    populateAddPageSelect();
+    addPageSel.value = activeTab().id;
+    populateAddSubcategorySelect();
+    addNameInput.value = '';
+    addPriceInput.value = '';
+    addSkuInput.value = '';
+    addSpecInput.value = '';
+    addNewSubInput.value = '';
+    addOverlay.classList.add('show');
+  }
+
+  function closeAddModal(){ addOverlay.classList.remove('show'); }
+
+  addPageSel && addPageSel.addEventListener('change', populateAddSubcategorySelect);
+  addSubcatSel && addSubcatSel.addEventListener('change', () => {
+    addNewSubField.style.display = addSubcatSel.value === '__new__' ? '' : 'none';
+  });
+  addFab && addFab.addEventListener('click', openAddModal);
+  document.getElementById('add-cancel') && document.getElementById('add-cancel').addEventListener('click', closeAddModal);
+  addOverlay && addOverlay.addEventListener('click', (e) => { if (e.target === addOverlay) closeAddModal(); });
+
+  addSaveBtn && addSaveBtn.addEventListener('click', async () => {
+    if (!dbApi) return;
+    const pageId = addPageSel.value;
+    const page = TOP_CATEGORIES.find(t => t.id === pageId);
+    const name = addNameInput.value.trim();
+    if (!name){
+      addErrorEl.textContent = 'Product name is required.';
+      addErrorEl.style.display = '';
+      return;
+    }
+    addSaveBtn.disabled = true;
+    try {
+      let categoryKey = addSubcatSel.value;
+      if (categoryKey === '__new__'){
+        const label = addNewSubInput.value.trim() || page.label.replace(/&amp;/g, '&');
+        let base = slugify(`${pageId}-${label}`), key = base, n = 2;
+        while (CATEGORIES[key]) { key = `${base}-${n}`; n++; }
+        categoryKey = key;
+        await dbApi.collection('subcategories').doc(categoryKey).set({ label, pageId });
+        addDynamicSubcategory(categoryKey, { label, pageId });
+      }
+      const priceRaw = addPriceInput.value.trim();
+      const price = priceRaw === '' ? null : parseFloat(priceRaw);
+      const id = uniqueProductId(slugify(`${pageId}-${name}`));
+      const docData = {
+        pageId, category: categoryKey, name,
+        sku: addSkuInput.value.trim(), spec: addSpecInput.value.trim(),
+        price: (price === null || isNaN(price)) ? null : price,
+        addedAt: Date.now()
+      };
+      await dbApi.collection('products').doc(id).set(docData);
+      addDynamicProduct({ id, ...docData });
+      currentTabIndex = TOP_CATEGORIES.findIndex(t => t.id === pageId);
+      closeAddModal();
+      render();
+    } catch (e) {
+      addErrorEl.textContent = 'Could not save that product — please try again.';
+      addErrorEl.style.display = '';
+    } finally {
+      addSaveBtn.disabled = false;
+    }
+  });
+
+  (async function initDb(){
+    if (!window.claude || typeof window.claude.use !== 'function') return;
+    let api = null;
+    try { api = await window.claude.use('db'); } catch (e) { api = null; }
+    if (!api) return;
+    dbApi = api;
+    if (addFab) addFab.style.display = 'flex';
+
+    dbApi.collection('subcategories').onSnapshot(snap => {
+      let changed = false;
+      snap.docs.forEach(d => {
+        if (!CATEGORIES[d.id]) { addDynamicSubcategory(d.id, d.data()); changed = true; }
+      });
+      if (changed) render();
+    }, () => {});
+
+    dbApi.collection('products').onSnapshot(snap => {
+      let changed = false;
+      snap.docs.forEach(d => {
+        if (!PRODUCTS.some(p => p.id === d.id)) { addDynamicProduct({ id: d.id, ...d.data() }); changed = true; }
+      });
+      if (changed) render();
+    }, () => {});
+  })();
 
   render();
 </script>
