@@ -809,6 +809,11 @@
       <label for="add-spec">Spec / size (optional)</label>
       <input type="text" id="add-spec">
     </div>
+    <div class="modal-field" id="add-photo-field" style="display:none">
+      <label for="add-photo">Photo (optional)</label>
+      <input type="file" id="add-photo" accept="image/png,image/jpeg,image/webp,image/gif">
+      <img id="add-photo-preview" style="display:none;margin-top:8px;max-width:100px;max-height:100px;border-radius:8px;border:1.6px solid var(--purple-line)">
+    </div>
     <div class="modal-actions">
       <button type="button" class="modal-cancel" id="add-cancel">Cancel</button>
       <button type="button" class="modal-save" id="add-save">Add product</button>
@@ -1372,8 +1377,9 @@
     });
   });
 
-  // ---------- Add product (via the `db` artifact capability) ----------
+  // ---------- Add product (via the `db` / `assets` artifact capabilities) ----------
   let dbApi = null;
+  let assetsApi = null;
 
   function slugify(text){
     return (text || '').toString().normalize('NFKD').replace(/[̀-ͯ]/g, '')
@@ -1399,7 +1405,7 @@
       id: doc.id, category: doc.category, name: doc.name,
       sku: doc.sku || '', spec: doc.spec || '',
       price: (doc.price === undefined || doc.price === null) ? null : doc.price,
-      img: PHOTO_PENDING
+      img: doc.img || PHOTO_PENDING
     });
     state[doc.id] = 0;
   }
@@ -1416,6 +1422,20 @@
   const addSpecInput = document.getElementById('add-spec');
   const addSaveBtn = document.getElementById('add-save');
   const addErrorEl = document.getElementById('add-modal-error');
+  const addPhotoField = document.getElementById('add-photo-field');
+  const addPhotoInput = document.getElementById('add-photo');
+  const addPhotoPreview = document.getElementById('add-photo-preview');
+
+  addPhotoInput && addPhotoInput.addEventListener('change', () => {
+    const file = addPhotoInput.files && addPhotoInput.files[0];
+    if (!file){ addPhotoPreview.style.display = 'none'; return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      addPhotoPreview.src = reader.result;
+      addPhotoPreview.style.display = '';
+    };
+    reader.readAsDataURL(file);
+  });
 
   function populateAddPageSelect(){
     addPageSel.innerHTML = TOP_CATEGORIES.map(t =>
@@ -1443,6 +1463,8 @@
     addSkuInput.value = '';
     addSpecInput.value = '';
     addNewSubInput.value = '';
+    if (addPhotoInput) addPhotoInput.value = '';
+    if (addPhotoPreview) addPhotoPreview.style.display = 'none';
     addOverlay.classList.add('show');
   }
 
@@ -1480,10 +1502,20 @@
       const priceRaw = addPriceInput.value.trim();
       const price = priceRaw === '' ? null : parseFloat(priceRaw);
       const id = uniqueProductId(slugify(`${pageId}-${name}`));
+
+      let imgUrl = null, imgAssetId = null;
+      const photoFile = addPhotoInput && addPhotoInput.files && addPhotoInput.files[0];
+      if (photoFile && assetsApi){
+        const uploaded = await assetsApi.upload(photoFile);
+        imgUrl = uploaded.url;
+        imgAssetId = uploaded.id;
+      }
+
       const docData = {
         pageId, category: categoryKey, name,
         sku: addSkuInput.value.trim(), spec: addSpecInput.value.trim(),
         price: (price === null || isNaN(price)) ? null : price,
+        img: imgUrl, imgAssetId,
         addedAt: Date.now()
       };
       await dbApi.collection('products').doc(id).set(docData);
@@ -1506,6 +1538,9 @@
     if (!api) return;
     dbApi = api;
     if (addFab) addFab.style.display = 'flex';
+
+    try { assetsApi = await window.claude.use('assets'); } catch (e) { assetsApi = null; }
+    if (assetsApi && addPhotoField) addPhotoField.style.display = '';
 
     dbApi.collection('subcategories').onSnapshot(snap => {
       let changed = false;
